@@ -17,9 +17,9 @@ type Tweet struct {
 	ImageURL   string `json:"image_url"`
 }
 
-func ParseTweets(r io.Reader) ([]Tweet, error) {
+func ParseTweets(r io.Reader) ([]*Tweet, error) {
 
-	var tweets []Tweet
+	var tweets []*Tweet
 	doc, err := goquery.NewDocumentFromReader(r)
 
 	if err != nil {
@@ -28,7 +28,7 @@ func ParseTweets(r io.Reader) ([]Tweet, error) {
 
 	doc.Find(".tweet").Each(func(i int, s *goquery.Selection) {
 
-		tweet := Tweet{
+		tweet := &Tweet{
 
 			ID:         s.AttrOr("data-tweet-id", ""),
 			Permalink:  s.AttrOr("data-permalink-path", ""),

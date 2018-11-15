@@ -10,7 +10,7 @@ func URLFromUsername(username string) string {
 	return fmt.Sprintf("https://twitter.com/%s", strings.TrimSpace(username))
 }
 
-func FetchUserWithClientAndParse(client http.Client, username string) ([]Tweet, error) {
+func FetchUserWithClientAndParse(client http.Client, username string) ([]*Tweet, error) {
 
 	resp, err := client.Get(URLFromUsername(username))
 	if err != nil {
