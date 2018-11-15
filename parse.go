@@ -1,7 +1,6 @@
 package twitterparse
 
 import (
-	"bytes"
 	"github.com/PuerkitoBio/goquery"
 	"io"
 )
@@ -16,11 +15,6 @@ type Tweet struct {
 	UserID     string `json:"user_id"`
 	UserAvatar string `json:"user_avatar"`
 	ImageURL   string `json:"image_url"`
-}
-
-func ParseTweetsBytes(b []byte) ([]Tweet, error) {
-	r := bytes.NewReader(b)
-	return ParseTweets(r)
 }
 
 func ParseTweets(r io.Reader) ([]Tweet, error) {

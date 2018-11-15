@@ -1,13 +1,22 @@
 package twitterparse
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+	"strings"
+)
 
-func FetchUserWithClientAndParse(c http.Client, username string) ([]Tweet, error) {
+func URLFromUsername(username string) string {
+	return fmt.Sprintf("https://twitter.com/%s", strings.TrimSpace(username))
+}
 
-	b, err := FetchWithClient(c, URLFromUsername(username))
+func FetchUserWithClientAndParse(client http.Client, username string) ([]Tweet, error) {
+
+	resp, err := client.Get(URLFromUsername(username))
 	if err != nil {
 		return nil, err
 	}
-	return ParseTweetsBytes(b)
+	defer resp.Body.Close()
+	return ParseTweets(resp.Body)
 
 }
