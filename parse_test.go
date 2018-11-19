@@ -21,7 +21,7 @@ func TestParseTweets(t *testing.T) {
 		t.Fail()
 	}
 
-	if twt.Timestamp != "1542058265" {
+	if twt.Timestamp != 1542058265 {
 		t.Fail()
 	}
 
@@ -46,6 +46,17 @@ func TestParseTweets(t *testing.T) {
 	}
 
 	if twt.ImageURL != "https://pbs.twimg.com/media/Dr1SMVKWwAArMlw.jpg" {
+		t.Fail()
+	}
+}
+
+func TestGetVideoID(t *testing.T) {
+
+	style := "padding-bottom: 56.25%; background-image:url('https://pbs.twimg.com/tweet_video_thumb/DsBuRmoVsAEJu_Q.jpg')"
+
+	videoID := getVideoID(style)
+
+	if videoID != "DsBuRmoVsAEJu_Q" {
 		t.Fail()
 	}
 }
