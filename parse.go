@@ -1,12 +1,12 @@
 package twitterparse
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dustin/go-humanize"
 	"io"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -14,7 +14,7 @@ type Tweet struct {
 	ID             string `json:"id"`
 	Permalink      string `json:"permalink"`
 	Content        string `json:"content"`
-	Timestamp      int    `json:"timestamp"`
+	Timestamp      int64  `json:"timestamp"`
 	ISOTime        string `json:"iso_time"`
 	RelativeTime   string `json:"relative_time"`
 	UserName       string `json:"user_name"`
@@ -27,6 +27,76 @@ type Tweet struct {
 	Video          bool   `json:"video"`
 	VideoThumbnail string `json:"video_thumbnail"`
 	VideoSource    string `json:"video_source"`
+}
+
+type ProfileTweet struct {
+	CreatedAt string    `json:"created_at"`
+	ID        string    `json:"id_string"`
+	FullText  string    `json:"full_text"`
+	Time      time.Time `json:"time"`
+	UserID    string    `json:"user_id_str"`
+
+	Entities struct {
+		Media []struct {
+			MediaURL string `json:"media_url_https"`
+			Type     string `json:"type"`
+		} `json:"media"`
+	} `json:"entities"`
+	ExtendedEntities struct {
+		Media []struct {
+			MediaURL  string `json:"media_url_https"`
+			Type      string `json:"type"`
+			VideoInfo struct {
+				AspectRatio [2]int `json:"aspect_ratio"`
+				Duration    int    `json:"duration_millis"`
+				Variants    []struct {
+					Bitrate     int    `json:"bitrate"`
+					ContentType string `json:"content_type"`
+					URL         string `json:"url"`
+				} `json:"variants"`
+			} `json:"video_info"`
+		} `json:"media"`
+	} `json:"extended_entities"`
+}
+
+type ProfileUser struct {
+	ID              string `json:"id_str"`
+	Name            string `json:"name"`
+	ScreenName      string `json:"screen_name"`
+	Location        string `json:"location"`
+	Description     string `json:"description"`
+	ProfileImageURL string `json:"profile_image_url_https"`
+	BannerImageURL  string `json:"profile_banner_url"`
+}
+
+type Profile struct {
+	GlobalObjects struct {
+		Tweets map[string]*ProfileTweet `json:"tweets"`
+		Users  map[string]*ProfileUser  `json:"users"`
+	} `json:"globalObjects"`
+}
+
+func ParseProfile(r io.Reader) (*Profile, error) {
+
+	profile := &Profile{}
+	err := json.NewDecoder(r).Decode(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tweet := range profile.GlobalObjects.Tweets {
+
+		tm, err := time.Parse(time.RubyDate, tweet.CreatedAt)
+		if err != nil {
+			fmt.Printf("error parsing date %s: %v", tweet.CreatedAt, err)
+		}
+
+		tweet.Time = tm
+
+	}
+
+	return profile, nil
+
 }
 
 func ParseTweets(r io.Reader) ([]*Tweet, error) {
@@ -58,45 +128,15 @@ func ParseTweets(r io.Reader) ([]*Tweet, error) {
 			UserHandle:   s.AttrOr("data-screen-name", ""),
 			UserID:       s.AttrOr("data-user-id", ""),
 			UserAvatar:   s.Find(".avatar").AttrOr("src", ""),
-			Timestamp:    timestamp,
+			Timestamp:    int64(timestamp),
 			RelativeTime: relativeTime,
 			ISOTime:      timeValue.Format("2006-01-02T15:04:05Z"),
 			ImageURL:     s.Find(".js-adaptive-photo").AttrOr("data-image-url", ""),
 			Video:        video,
 		}
 
-		if video {
-
-			playerStyle := s.Find(".PlayableMedia-player").AttrOr("style", "")
-
-			tweet.VideoThumbnail = getVideoThumbnail(playerStyle)
-
-			// videoId := getVideoID(playerStyle)
-			// tweet.VideoSource = fmt.Sprintf("https://video.twimg.com/tweet_video/%s.mp4", videoId)
-			// https://api.twitter.com/2/timeline/profile/55246492.json?include_profile_interstitial_type=1&include_blocking=1&include_blocked_by=1&include_followed_by=1&include_want_retweets=1&include_mute_edge=1&include_can_dm=1&include_can_media_tag=1&skip_status=1&cards_platform=Web-12&include_cards=1&include_composer_source=true&include_ext_alt_text=true&include_reply_count=1&tweet_mode=extended&include_entities=true&include_user_entities=true&include_ext_media_color=true&send_error_codes=true&include_tweet_replies=false&userId=55246492&count=20&ext=mediaStats%2ChighlightedLabel
-		}
-
 		tweets = append(tweets, tweet)
 	})
 
 	return tweets, nil
-}
-
-func getVideoID(style string) string {
-
-	reID := regexp.MustCompile(`/(.*?)\.jpg`)
-	idMatches := reID.FindStringSubmatch(style)
-	if len(idMatches) < 2 {
-		return ""
-	}
-	return idMatches[1]
-}
-
-func getVideoThumbnail(style string) string {
-	reID := regexp.MustCompile(`url\((.*)\)`)
-	idMatches := reID.FindStringSubmatch(style)
-	if len(idMatches) < 2 {
-		return ""
-	}
-	return strings.Trim(idMatches[1], "\"'")
 }
