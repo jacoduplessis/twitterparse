@@ -50,17 +50,6 @@ func TestParseTweets(t *testing.T) {
 	}
 }
 
-func TestGetVideoID(t *testing.T) {
-
-	style := "padding-bottom: 56.25%; background-image:url('https://pbs.twimg.com/tweet_video_thumb/DsBuRmoVsAEJu_Q.jpg')"
-
-	videoID := getVideoID(style)
-	expected := "DsBuRmoVsAEJu_Q"
-	if videoID != expected {
-		t.Errorf("expected %s, got %s", expected, videoID)
-	}
-}
-
 func TestAPIParse(t *testing.T) {
 
 	f, _ := os.Open("test/profile.json")

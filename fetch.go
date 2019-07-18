@@ -6,25 +6,25 @@ import (
 	"github.com/dustin/go-humanize"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"regexp"
+	"time"
 )
 
 const TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
 
 var cookieRegex = regexp.MustCompile(`document\.cookie.*?gt=(.*?);`)
-var indexURL, _ = url.Parse("https://mobile.twitter.com")
+var indexURL = "https://mobile.twitter.com"
+
+type GuestToken string
 
 type TwitterClient struct {
-	Client *http.Client
-	Token  string
+	Client http.Client
+	Token  GuestToken
 }
 
-func NewClient() (*TwitterClient, error) {
+func NewClientWithHTTPClient(c http.Client) (*TwitterClient, error) {
 
-	client := &http.Client{}
-
-	guestToken, err := initialRequest(client)
+	guestToken, err := initialRequest(c)
 	if err != nil {
 		return nil, err
 	}
@@ -36,36 +36,43 @@ func NewClient() (*TwitterClient, error) {
 	}
 
 	tc := &TwitterClient{
-		Client: client,
+		Client: c,
 		Token:  guestToken,
 	}
 
 	return tc, nil
 }
 
+func NewClient() (*TwitterClient, error) {
+
+	c := http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	return NewClientWithHTTPClient(c)
+}
+
 func (tc *TwitterClient) GetProfile(userID string) (*Profile, error) {
-	h := http.Header{}
 
 	// also see https://api.twitter.com/2/timeline/media/%s.json
 
-	u, _ := url.Parse(fmt.Sprintf("https://api.twitter.com/2/timeline/profile/%s.json?include_profile_interstitial_type=1&include_blocking=1&include_blocked_by=1&include_followed_by=1&include_want_retweets=1&include_mute_edge=1&include_can_dm=1&include_can_media_tag=1&skip_status=1&cards_platform=Web-12&include_cards=1&include_composer_source=true&include_ext_alt_text=true&include_reply_count=1&tweet_mode=extended&include_entities=true&include_user_entities=true&include_ext_media_color=true&send_error_codes=true&include_tweet_replies=false&userId=%s&count=20&ext=mediaStats,highlightedLabel",
-		userID, userID))
+	u := fmt.Sprintf("https://api.twitter.com/2/timeline/profile/%s.json?include_profile_interstitial_type=1&include_blocking=1&include_blocked_by=1&include_followed_by=1&include_want_retweets=1&include_mute_edge=1&include_can_dm=1&include_can_media_tag=1&skip_status=1&cards_platform=Web-12&include_cards=1&include_composer_source=true&include_ext_alt_text=true&include_reply_count=1&tweet_mode=extended&include_entities=true&include_user_entities=true&include_ext_media_color=true&send_error_codes=true&include_tweet_replies=false&userId=%s&count=20&ext=mediaStats,highlightedLabel",
+		userID, userID)
 
-	h.Add("Authorization", fmt.Sprintf("Bearer %s", TOKEN))
-	h.Add("Origin", "https://mobile.twitter.com")
-	h.Add("Referer", "https://mobile.twitter.com")
-	h.Add("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/11.0 Safari/605.1.15 Epiphany/605.1.15")
-	h.Add("x-twitter-active-user", "yes")
-	h.Add("x-twitter-client-language", "en")
-	h.Add("x-guest-token", tc.Token)
-
-	req := &http.Request{
-		Method: "GET",
-		URL:    u,
-		Header: h,
+	r, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	resp, err := tc.Client.Do(req)
+	r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", TOKEN))
+	r.Header.Add("Origin", "https://mobile.twitter.com")
+	r.Header.Add("Referer", "https://mobile.twitter.com")
+	r.Header.Add("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/11.0 Safari/605.1.15 Epiphany/605.1.15")
+	r.Header.Add("x-twitter-active-user", "yes")
+	r.Header.Add("x-twitter-client-language", "en")
+	r.Header.Add("x-guest-token", string(tc.Token))
+
+	resp, err := tc.Client.Do(r)
 
 	if err != nil {
 		return nil, err
@@ -132,20 +139,18 @@ func (tc *TwitterClient) GetProfileTweets(userID string) ([]*Tweet, error) {
 
 }
 
-func initialRequest(client *http.Client) (string, error) {
+func initialRequest(client http.Client) (GuestToken, error) {
 
 	guestToken := ""
 
-	h := http.Header{}
-	h.Add("Origin", "https://mobile.twitter.com")
-	h.Add("Referer", "https://mobile.twitter.com")
-	h.Add("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/11.0 Safari/605.1.15 Epiphany/605.1.15")
-
-	req1 := &http.Request{
-		Method: "GET",
-		URL:    indexURL,
-		Header: h,
+	req1, err := http.NewRequest("GET", indexURL, nil)
+	if err != nil {
+		return "", err
 	}
+
+	req1.Header.Add("Origin", "https://mobile.twitter.com")
+	req1.Header.Add("Referer", "https://mobile.twitter.com")
+	req1.Header.Add("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/11.0 Safari/605.1.15 Epiphany/605.1.15")
 
 	r1, err := client.Do(req1)
 	if err != nil {
@@ -163,6 +168,6 @@ func initialRequest(client *http.Client) (string, error) {
 		guestToken = string(matches[1])
 	}
 
-	return guestToken, nil
+	return GuestToken(guestToken), nil
 
 }

@@ -10,18 +10,17 @@ import (
 func main() {
 
 	if len(os.Args) < 2 {
-		log.Fatal("Usage: go run main.go USERNAME\n")
+		log.Fatal("Usage: go run main.go USER_ID\n")
 	}
 	username := os.Args[1]
 
-	url := twitterparse.URLFromUsername(username)
-
-	bts, err := twitterparse.Fetch(url)
+	tc, err := twitterparse.NewClient()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tweets, err := twitterparse.ParseTweetsBytes(bts)
+	tweets, err := tc.GetProfileTweets(username)
+
 	if err != nil {
 		log.Fatal(err)
 	}
